@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>任務推薦</title>
+</head>
+
+<body>
+
+    <h1>習慣養成系統</h1>
+
+    <button onclick="getRecommend()">取得早睡推薦</button>
+    <button onclick="getStats()">查看完成率</button>
+
+    <h3 id="title"></h3>
+    <ul id="result"></ul>
+
+    <script>
+        function getRecommend() {
+            fetch("http://127.0.0.1:5000/recommend/sleep")
+                .then(response => response.json())
+                .then(data => {
+                    console.log("後端回傳資料:", data); // 👈 加這行
+
+                    let result = document.getElementById("result");
+                    result.innerHTML = "";
+
+                    if (!data.tasks) {
+                        result.innerHTML = "<li>資料格式錯誤</li>";
+                        return;
+                    }
+
+                    data.tasks.forEach(task => {
+                        let li = document.createElement("li");
+                        li.textContent = task;
+                        result.appendChild(li);
+                    });
+                })
+                .catch(error => {
+                    console.log("錯誤:", error);
+                    alert("發生錯誤，請確認後端是否啟動");
+                });
+        }
+
+        function getStats() {
+            fetch("http://127.0.0.1:5000/stats/5/10")
+                .then(res => res.json())
+                .then(data => {
+                    console.log("後端回傳資料:", data);
+
+                    let resultList = document.getElementById("result"); // 👈 改名字
+                    resultList.innerHTML = "";
+
+                    let li1 = document.createElement("li");
+                    li1.textContent = "完成率：" + data.rate + "%";
+
+                    let li2 = document.createElement("li");
+                    li2.textContent = "等級：" + data.level;
+
+                    resultList.appendChild(li1);
+                    resultList.appendChild(li2);
+                })
+                .catch(error => {
+                    console.log("錯誤:", error);
+                });
+        }
+    </script>
+
+
+</body>
+
+</html>
