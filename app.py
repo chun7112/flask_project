@@ -11,10 +11,11 @@ CORS(app)
 # ===== 資料庫連線 =====
 def get_db():
     return pymysql.connect(
-        host="127.0.0.1",
-        user="rockuser",
-        password="123456",
-        database="rock_task_app",
+        host="acela.proxy.rlwy.net",
+        port=35686,
+        user="root",
+        password="FLDApMJvyhFcgrxbbevjGlmKUVoyPasD",
+        database="railway",
         cursorclass=pymysql.cursors.DictCursor
     )
 
