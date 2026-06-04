@@ -1,14 +1,143 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
+from datetime import date, timedelta
+import pymysql
 import random
 import os
 
 app = Flask(__name__)
 CORS(app)
 
+# ===== 資料庫連線 =====
+def get_db():
+    return pymysql.connect(
+        host="127.0.0.1",
+        user="rockuser",
+        password="123456",
+        database="rock_task_app",
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+
 @app.route("/")
 def home():
     return "Hello Flask!"
+    
+@app.route("/db-test")
+def db_test():
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) AS total FROM checkins")
+
+    result = cursor.fetchone()
+
+    conn.close()
+
+    return {
+        "total_checkins": result["total"]
+    }
+    
+@app.route("/checkin", methods=["POST"])
+def checkin():
+
+    data = request.json
+    user_id = data["user_id"]
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # 檢查今天是否已打卡
+    cursor.execute("""
+        SELECT *
+        FROM checkins
+        WHERE user_id = %s
+        AND checkin_date = CURDATE()
+    """, (user_id,))
+
+    existing = cursor.fetchone()
+
+    if existing:
+        conn.close()
+
+        return {
+            "success": False,
+            "message": "already checked in"
+        }
+
+    # 新增打卡
+    cursor.execute("""
+        INSERT INTO checkins (
+            user_id,
+            checkin_date
+        )
+        VALUES (
+            %s,
+            CURDATE()
+        )
+    """, (user_id,))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "message": "checkin success"
+    }
+    
+@app.route("/streak/<user_id>")
+def get_streak(user_id):
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT checkin_date
+        FROM checkins
+        WHERE user_id = %s
+        ORDER BY checkin_date ASC
+    """, (user_id,))
+
+    records = cursor.fetchall()
+
+    conn.close()
+
+    if not records:
+        return {
+            "current_streak": 0,
+            "best_streak": 0,
+            "total_checkins": 0
+        }
+
+    dates = [r["checkin_date"] for r in records]
+
+    # ===== 計算最高連續 =====
+    best_streak = 1
+    current_run = 1
+
+    for i in range(1, len(dates)):
+        if dates[i] - dates[i - 1] == timedelta(days=1):
+            current_run += 1
+            best_streak = max(best_streak, current_run)
+        else:
+            current_run = 1
+
+    # ===== 計算目前連續 =====
+    current_streak = 0
+    today = date.today()
+
+    date_set = set(dates)
+
+    while today in date_set:
+        current_streak += 1
+        today -= timedelta(days=1)
+
+    return {
+        "current_streak": current_streak,
+        "best_streak": best_streak,
+        "total_checkins": len(dates)
+    }
 
 @app.route("/recommend/<goal>")
 def recommend(goal):
@@ -48,6 +177,90 @@ def quote():
     ]
 
     return {"quote": random.choice(quotes)}
+    
+@app.route("/register", methods=["POST"])
+def register():
+
+    data = request.get_json()
+
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return {
+            "success": False,
+            "message": "username and password required"
+        }, 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # 檢查帳號是否存在
+    cursor.execute(
+        "SELECT * FROM users WHERE username = %s",
+        (username,)
+    )
+
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        conn.close()
+
+        return {
+            "success": False,
+            "message": "username already exists"
+        }
+
+    # 建立新帳號
+    cursor.execute(
+        """
+        INSERT INTO users (username, password)
+        VALUES (%s, %s)
+        """,
+        (username, password)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "message": "register success"
+    }
+    
+@app.route("/login", methods=["POST"])
+def login():
+
+    data = request.get_json()
+
+    username = data.get("username")
+    password = data.get("password")
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT * FROM users
+        WHERE username=%s AND password=%s
+        """,
+        (username, password)
+    )
+
+    user = cursor.fetchone()
+
+    conn.close()
+
+    if user:
+        return {
+            "success": True,
+            "message": "login success"
+        }
+
+    return {
+        "success": False,
+        "message": "invalid username or password"
+    }
 
 
 if __name__ == "__main__":
