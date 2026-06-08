@@ -10,15 +10,21 @@ CORS(app)
 
 # ===== 資料庫連線 =====
 def get_db():
-    return pymysql.connect(
+
+    print("=== START DB CONNECT ===")
+
+    conn = pymysql.connect(
         host="acela.proxy.rlwy.net",
         port=35686,
         user="root",
-        password="UypteXcAoRmockHSAXYGtpTTppWrwkVT",
+        password="你的密碼",
         database="railway",
         cursorclass=pymysql.cursors.DictCursor
     )
 
+    print("=== DB CONNECT SUCCESS ===")
+
+    return conn
 
 @app.route("/")
 def home():
@@ -231,6 +237,12 @@ def register():
     
 @app.route("/login", methods=["POST"])
 def login():
+
+    print("=== LOGIN START ===")
+
+    conn = get_db()
+
+    print("=== AFTER GET_DB ===")
 
     data = request.get_json()
 
