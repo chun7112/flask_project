@@ -17,7 +17,7 @@ def get_db():
         host="acela.proxy.rlwy.net",
         port=35686,
         user="root",
-        password="你的密碼",
+        password="UypteXcAoRmockHSAXYGtpTTppWrwkVT",
         database="railway",
         cursorclass=pymysql.cursors.DictCursor
     )
